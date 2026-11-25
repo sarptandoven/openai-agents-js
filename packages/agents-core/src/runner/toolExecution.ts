@@ -1333,6 +1333,8 @@ async function runApprovedFunctionTool<TContext>(
       }
 
       const redactedBeforeToolStart = refreshRedaction();
+      // Set before the hooks run so a throwing start hook still gets its end.
+      toolStarted = true;
       try {
         emitFunctionToolStart(
           runner,
@@ -1353,7 +1355,6 @@ async function runApprovedFunctionTool<TContext>(
         throw hookError;
       }
       refreshRedaction();
-      toolStarted = true;
 
       let toolOutput: unknown;
       let executedInput = approvalArgs;
@@ -1664,21 +1665,24 @@ async function runApprovedFunctionTool<TContext>(
         },
       });
 
-      try {
-        emitFunctionToolEnd(
-          runner,
-          state._context,
-          agent,
-          toolRun.tool,
-          errorResult,
-          toolRun.toolCall,
-          refreshRedaction,
-        );
-      } catch (hookError) {
-        if (refreshRedaction() && invalidInputFailure) {
-          throw invalidInputFailure.error;
+      // A failure before the start hooks, such as an input guardrail tripwire, emits no end.
+      if (toolStarted) {
+        try {
+          emitFunctionToolEnd(
+            runner,
+            state._context,
+            agent,
+            toolRun.tool,
+            errorResult,
+            toolRun.toolCall,
+            refreshRedaction,
+          );
+        } catch (hookError) {
+          if (refreshRedaction() && invalidInputFailure) {
+            throw invalidInputFailure.error;
+          }
+          throw hookError;
         }
-        throw hookError;
       }
 
       if (
