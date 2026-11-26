@@ -28,6 +28,8 @@ type StreamingState = {
   refusal_content: protocol.Refusal | null;
   function_calls: Record<number, protocol.FunctionCallItem>;
   ignored_tool_call_indexes: Set<number>;
+  indexless_tool_call_indexes_by_id: Map<string, number>;
+  last_indexless_tool_call_index: number | undefined;
   reasoning: string;
   finishReason: ChatCompletion['choices'][number]['finish_reason'] | null;
   hasWarnedUnsupportedChoice: boolean;
@@ -155,6 +157,8 @@ export async function* convertChatCompletionsStreamToResponses(
     refusal_content: null,
     function_calls: {},
     ignored_tool_call_indexes: new Set(),
+    indexless_tool_call_indexes_by_id: new Map(),
+    last_indexless_tool_call_index: undefined,
     reasoning: '',
     finishReason: null,
     hasWarnedUnsupportedChoice: false,
@@ -300,7 +304,8 @@ export async function* convertChatCompletionsStreamToResponses(
     // Handle tool calls
     if (delta.tool_calls) {
       for (const tc_delta of delta.tool_calls) {
-        if (state.ignored_tool_call_indexes.has(tc_delta.index)) {
+        const toolCallIndex = resolveToolCallIndex(state, tc_delta);
+        if (state.ignored_tool_call_indexes.has(toolCallIndex)) {
           continue;
         }
 
@@ -310,12 +315,12 @@ export async function* convertChatCompletionsStreamToResponses(
               'Custom tool calls are not supported by the Chat Completions converter.',
             );
           }
-          state.ignored_tool_call_indexes.add(tc_delta.index);
+          state.ignored_tool_call_indexes.add(toolCallIndex);
           continue;
         }
 
-        if (!(tc_delta.index in state.function_calls)) {
-          state.function_calls[tc_delta.index] = {
+        if (!(toolCallIndex in state.function_calls)) {
+          state.function_calls[toolCallIndex] = {
             id: response.id || FAKE_ID,
             arguments: '',
             name: '',
@@ -324,11 +329,11 @@ export async function* convertChatCompletionsStreamToResponses(
           };
         }
         const tc_function = tc_delta.function;
-        state.function_calls[tc_delta.index].arguments +=
+        state.function_calls[toolCallIndex].arguments +=
           tc_function?.arguments || '';
-        state.function_calls[tc_delta.index].name += tc_function?.name || '';
-        if (tc_delta.id && !state.function_calls[tc_delta.index].callId) {
-          state.function_calls[tc_delta.index].callId = tc_delta.id;
+        state.function_calls[toolCallIndex].name += tc_function?.name || '';
+        if (tc_delta.id && !state.function_calls[toolCallIndex].callId) {
+          state.function_calls[toolCallIndex].callId = tc_delta.id;
         }
       }
     }
@@ -472,6 +477,48 @@ export async function* convertChatCompletionsStreamToResponses(
   };
 
   yield finalEvent;
+}
+
+type ChatCompletionToolCallDelta = NonNullable<
+  ChatCompletionChunk['choices'][number]['delta']['tool_calls']
+>[number];
+
+/**
+ * Returns the index that collects a streamed tool call delta.
+ *
+ * Some OpenAI-compatible servers, such as Gemini, omit `index` and send each call whole in its
+ * own delta. Without an index, a new call ID starts a new call and a delta without an ID continues
+ * the latest one, so arguments split across chunks still join.
+ */
+function resolveToolCallIndex(
+  state: StreamingState,
+  toolCallDelta: ChatCompletionToolCallDelta,
+): number {
+  const providerIndex: unknown = toolCallDelta.index;
+  if (typeof providerIndex === 'number') {
+    return providerIndex;
+  }
+
+  const callId = toolCallDelta.id;
+  const knownIndex = callId
+    ? state.indexless_tool_call_indexes_by_id.get(callId)
+    : state.last_indexless_tool_call_index;
+  if (knownIndex !== undefined) {
+    state.last_indexless_tool_call_index = knownIndex;
+    return knownIndex;
+  }
+
+  const index =
+    Math.max(
+      -1,
+      ...Object.keys(state.function_calls).map(Number),
+      ...state.ignored_tool_call_indexes,
+    ) + 1;
+  if (callId) {
+    state.indexless_tool_call_indexes_by_id.set(callId, index);
+  }
+  state.last_indexless_tool_call_index = index;
+  return index;
 }
 
 function buildTraceChoice(
