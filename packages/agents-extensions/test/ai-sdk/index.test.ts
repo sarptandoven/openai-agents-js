@@ -4331,7 +4331,6 @@ describe('Extended thinking / Reasoning support', () => {
       expect(final.response.output).toHaveLength(2);
       expect(final.response.output[0]).toMatchObject({
         type: 'reasoning',
-        id: 'reasoning-1',
         content: [
           { type: 'input_text', text: 'Let me think... step by step.' },
         ],
@@ -4370,7 +4369,6 @@ describe('Extended thinking / Reasoning support', () => {
       expect(response.output).toEqual([
         {
           type: 'reasoning',
-          id: '0',
           content: [{ type: 'input_text', text: 'Hidden thought.' }],
           rawContent: [{ type: 'reasoning_text', text: 'Hidden thought.' }],
           providerData: {
@@ -4396,7 +4394,6 @@ describe('Extended thinking / Reasoning support', () => {
 
       expect(response.output[0]).toMatchObject({
         type: 'reasoning',
-        id: '0',
         content: [{ type: 'input_text', text: '' }],
         providerData: {
           model: 'stub:m',
@@ -4518,7 +4515,6 @@ describe('Extended thinking / Reasoning support', () => {
       expect(response.output).toMatchObject([
         {
           type: 'reasoning',
-          id: '10',
           content: [{ type: 'input_text', text: '' }],
           providerData: {
             anthropic: { redactedData: 'redacted_block' },
@@ -4526,7 +4522,6 @@ describe('Extended thinking / Reasoning support', () => {
         },
         {
           type: 'reasoning',
-          id: '2',
           content: [{ type: 'input_text', text: 'Visible thought.' }],
           providerData: {
             anthropic: { signature: 'signed_block' },
