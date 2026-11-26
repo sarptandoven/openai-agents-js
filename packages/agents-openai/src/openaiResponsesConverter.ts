@@ -1380,7 +1380,8 @@ function getInputItems(
           ...camelOrSnakeToSnakeCase(item.providerData), // place here to prioritize the below fields
           type: 'image_generation_call',
           id: item.id!,
-          result: item.providerData?.result ?? null,
+          // convertToOutputItem moves the image from providerData to output.
+          result: item.output ?? item.providerData?.result ?? null,
           status: (item.status ??
             'failed') as OpenAI.Responses.ResponseInputItem.ImageGenerationCall['status'],
         };
