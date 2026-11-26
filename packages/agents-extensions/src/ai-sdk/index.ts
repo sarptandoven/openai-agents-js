@@ -1569,9 +1569,10 @@ export class AiSdkModel implements Model {
           ) {
             continue;
           }
+          // AI SDK reasoning ids only group stream parts within one response, so
+          // providers reuse them across turns. Like getResponse, leave the item without an id.
           outputs.push({
             type: 'reasoning',
-            id: entry.reasoningId !== 'default' ? entry.reasoningId : undefined,
             content: [{ type: 'input_text', text: reasoningBlock.text }],
             rawContent: [{ type: 'reasoning_text', text: reasoningBlock.text }],
             // Preserve provider-specific metadata (including signature for Anthropic extended thinking)
