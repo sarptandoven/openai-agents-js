@@ -21,7 +21,13 @@ export type {
   CompletedAgentToolInvocationRunResult,
 } from './agent';
 export { Computer } from './computer';
-export { ShellAction, ShellResult, ShellOutputResult, Shell } from './shell';
+export {
+  ShellAction,
+  ShellResult,
+  ShellOutputResult,
+  Shell,
+  ShellInvocationContext,
+} from './shell';
 export {
   ApplyPatchOperation,
   ApplyPatchResult,
