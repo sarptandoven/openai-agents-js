@@ -1,3 +1,4 @@
+import type { RunContext } from './runContext';
 import type {
   ShellAction as ProtocolShellAction,
   ShellCallOutputContent,
@@ -33,11 +34,29 @@ export type ShellResult = {
 };
 
 /**
+ * Runtime context passed to a shell implementation.
+ */
+export type ShellInvocationContext = {
+  /**
+   * Current run context.
+   */
+  runContext: RunContext;
+  /**
+   * Call ID of the shell call being run, the same ID that `needsApproval` receives.
+   */
+  toolCallId: string;
+};
+
+/**
  * Executes shell commands on behalf of the agent.
  */
 export interface Shell {
   /**
-   * Runs the given action and returns the resulting output.
+   * Runs the given action and returns the resulting output. The runner passes the invocation
+   * context for every shell call.
    */
-  run(action: ShellAction): Promise<ShellResult>;
+  run(
+    action: ShellAction,
+    context?: ShellInvocationContext,
+  ): Promise<ShellResult>;
 }

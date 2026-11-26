@@ -24,6 +24,11 @@ export type EditorInvocationContext = {
    * Current run context.
    */
   runContext: RunContext;
+  /**
+   * Call ID of the `apply_patch` call being applied, the same ID that `needsApproval` receives.
+   * The runner sets it for every call to an `applyPatchTool` editor.
+   */
+  toolCallId?: string;
 };
 
 /**

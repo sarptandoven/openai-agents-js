@@ -2162,7 +2162,10 @@ export async function executeShellActions(
         let maxOutputLength: number | undefined;
 
         try {
-          const shellResult = await shellTool.shell.run(toolCall.action);
+          const shellResult = await shellTool.shell.run(toolCall.action, {
+            runContext,
+            toolCallId: toolCallKey,
+          });
           shellOutputs = shellResult.output ?? [];
 
           if (shellResult.providerData) {
@@ -2249,7 +2252,7 @@ export async function executeApplyPatchOperations(
     const applyPatchTool = action.applyPatch;
     const toolCall = action.toolCall;
     const toolCallKey = getToolCallKey(toolCall) ?? toolCall.callId;
-    const editorContext = { runContext };
+    const editorContext = { runContext, toolCallId: toolCallKey };
     const approvalItem = new RunToolApprovalItem(
       toolCall,
       agent,

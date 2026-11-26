@@ -5,7 +5,12 @@ import { ScriptedModel, assistantMessage, modelResponse } from '../src/testing';
 import { tool } from '../src/tool';
 import type { Computer } from '../src/computer';
 import type { Environment } from '../src/computer';
-import type { Shell, ShellAction, ShellResult } from '../src/shell';
+import type {
+  Shell,
+  ShellAction,
+  ShellInvocationContext,
+  ShellResult,
+} from '../src/shell';
 import type {
   Editor,
   ApplyPatchOperation,
@@ -140,6 +145,7 @@ export class FakeTracingExporter implements TracingExporter {
 
 export class FakeShell implements Shell {
   public readonly calls: ShellAction[] = [];
+  public readonly contexts: (ShellInvocationContext | undefined)[] = [];
   public result: ShellResult = {
     output: [
       {
@@ -151,8 +157,12 @@ export class FakeShell implements Shell {
   };
   public error: Error | null = null;
 
-  async run(action: ShellAction): Promise<ShellResult> {
+  async run(
+    action: ShellAction,
+    context?: ShellInvocationContext,
+  ): Promise<ShellResult> {
     this.calls.push(action);
+    this.contexts.push(context);
     if (this.error) {
       throw this.error;
     }
