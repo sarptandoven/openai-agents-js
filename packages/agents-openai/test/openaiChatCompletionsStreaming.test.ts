@@ -1421,6 +1421,65 @@ describe('convertChatCompletionsStreamToResponses', () => {
     ]);
   });
 
+  it('keeps streamed tool calls without an index apart', async () => {
+    async function* stream() {
+      // Two calls in one chunk, then the rest of the second call's arguments.
+      yield makeChunk({
+        tool_calls: [
+          {
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'get_weather', arguments: '{"city":"Paris"}' },
+          },
+          {
+            id: 'call_2',
+            type: 'function',
+            function: { name: 'get_time', arguments: '{"tz":' },
+          },
+        ],
+      });
+      yield makeChunk({ tool_calls: [{ function: { arguments: '"UTC"}' } }] });
+      // A skipped custom call must not swallow the calls after it.
+      yield makeChunk({ tool_calls: [{ id: 'call_3', type: 'custom' }] });
+      yield makeChunk({ tool_calls: [{ function: { arguments: 'x' } }] });
+      yield makeChunk({
+        tool_calls: [
+          {
+            id: 'call_4',
+            type: 'function',
+            function: { name: 'get_date', arguments: '{"day":' },
+          },
+        ],
+      });
+      // An id repeated on a later fragment continues its call.
+      yield makeChunk({
+        tool_calls: [{ id: 'call_4', function: { arguments: '"mon"}' } }],
+      });
+    }
+
+    const events: any[] = [];
+    for await (const e of convertChatCompletionsStreamToResponses(
+      { id: 'r' } as any,
+      stream() as any,
+    )) {
+      events.push(e);
+    }
+
+    const calls = events
+      .at(-1)
+      .response.output.filter((item: any) => item.type === 'function_call')
+      .map(({ callId, name, arguments: args }: any) => ({
+        callId,
+        name,
+        arguments: args,
+      }));
+    expect(calls).toEqual([
+      { callId: 'call_1', name: 'get_weather', arguments: '{"city":"Paris"}' },
+      { callId: 'call_2', name: 'get_time', arguments: '{"tz":"UTC"}' },
+      { callId: 'call_4', name: 'get_date', arguments: '{"day":"mon"}' },
+    ]);
+  });
+
   it('ignores streamed custom tool calls by default', async () => {
     async function* stream() {
       yield makeChunk({
